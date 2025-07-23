@@ -74,6 +74,20 @@ class UserResource extends Resource
 
                 Forms\Components\Section::make('Account Settings')
                     ->schema([
+                        Forms\Components\TextInput::make('password')
+                            ->password()
+                            ->dehydrated(fn ($state) => filled($state))
+                            ->required(fn (string $context): bool => $context === 'create')
+                            ->minLength(8)
+                            ->confirmed()
+                            ->helperText('Leave blank to keep current password when editing'),
+                        
+                        Forms\Components\TextInput::make('password_confirmation')
+                            ->password()
+                            ->dehydrated(false)
+                            ->required(fn (string $context): bool => $context === 'create')
+                            ->minLength(8),
+                        
                         Forms\Components\Toggle::make('is_active')
                             ->label('Active Account')
                             ->default(true)
@@ -85,8 +99,7 @@ class UserResource extends Resource
                             ->disabled()
                             ->dehydrated(false),
                     ])
-                    ->columns(2)
-                    ->visibleOn('edit'),
+                    ->columns(2),
 
                 Forms\Components\Section::make('System Information')
                     ->schema([

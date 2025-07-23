@@ -1,12 +1,9 @@
 <?php
 
 use App\Http\Controllers\AccountSetupController;
-use App\Http\Controllers\Admin\UserController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Route;
-
-// Add these routes to your existing routes/web.php file
 
 Route::middleware(['auth'])->group(function () {
 
@@ -24,34 +21,6 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/dashboard', function () {
             return view('dashboard');
         })->name('dashboard');
-        
-        // Admin routes - only accessible by admin users
-        Route::middleware(['admin'])->prefix('admin')->name('admin.')->group(function () {
-            
-            // User management routes
-            Route::resource('users', UserController::class);
-            
-            // Additional user management actions
-            Route::patch('users/{user}/reset-password', [UserController::class, 'resetPassword'])
-                ->name('users.reset-password');
-            
-            Route::patch('users/{user}/toggle-status', [UserController::class, 'toggleStatus'])
-                ->name('users.toggle-status');
-        });
-    });
-    
-    // Admin routes - only accessible by admin users
-    Route::middleware(['admin'])->prefix('admin')->name('admin.')->group(function () {
-        
-        // User management routes
-        Route::resource('users', UserController::class);
-        
-        // Additional user management actions
-        Route::patch('users/{user}/reset-password', [UserController::class, 'resetPassword'])
-            ->name('users.reset-password');
-        
-        Route::patch('users/{user}/toggle-status', [UserController::class, 'toggleStatus'])
-            ->name('users.toggle-status');
     });
 });
 
