@@ -15,6 +15,7 @@ return Application::configure(basePath: dirname(__DIR__))
         // Add your custom middleware here
         $middleware->alias([
             'admin' => \App\Http\Middleware\AdminMiddleware::class,
+            'account.setup' => \App\Http\Middleware\EnsureAccountSetup::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {

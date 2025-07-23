@@ -76,6 +76,14 @@ class User extends Authenticatable
     }
 
     /**
+     * Get name attribute for Filament
+     */
+    public function getNameAttribute(): string
+    {
+        return $this->full_name;
+    }
+
+    /**
      * Get user type label
      */
     public function getUserTypeLabel(): string
