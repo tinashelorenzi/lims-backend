@@ -17,6 +17,7 @@ class EditUser extends EditRecord
     {
         return [
             Actions\ViewAction::make(),
+            Actions\DeleteAction::make(),
             
             Actions\Action::make('reset_password')
                 ->label('Reset Password')
@@ -40,26 +41,24 @@ class EditUser extends EditRecord
                 ->modalHeading('Reset User Password')
                 ->modalDescription('This will generate a new temporary password and require the user to set up their account again.')
                 ->modalSubmitActionLabel('Reset Password'),
-            
-            Actions\DeleteAction::make()
-                ->before(function () {
-                    // Prevent deletion of the last admin
-                    if ($this->record->isAdmin() && \App\Models\User::where('user_type', 'admin')->count() <= 1) {
-                        Notification::make()
-                            ->title('Cannot delete the last administrator')
-                            ->danger()
-                            ->send();
-                        
-                        return false;
-                    }
-                }),
         ];
     }
 
-    protected function getSavedNotification(): ?Notification
+    protected function getRedirectUrl(): string
     {
-        return Notification::make()
-            ->success()
-            ->title('User updated successfully');
+        return $this->getResource()::getUrl('index');
+    }
+
+    protected function mutateFormDataBeforeSave(array $data): array
+    {
+        // Only hash password if it was provided
+        if (!empty($data['password'])) {
+            $data['password'] = Hash::make($data['password']);
+        } else {
+            // Remove password from data if not provided to keep existing password
+            unset($data['password']);
+        }
+        
+        return $data;
     }
 }

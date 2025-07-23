@@ -48,45 +48,45 @@ class UserResource extends Resource
                         Forms\Components\TextInput::make('email')
                             ->email()
                             ->required()
-                            ->unique(User::class, 'email', ignoreRecord: true)
+                            ->unique(ignoreRecord: true)
                             ->maxLength(255),
                         
                         Forms\Components\TextInput::make('phone_number')
                             ->tel()
-                            ->maxLength(20)
-                            ->placeholder('+27 11 123 4567'),
-                    ])
-                    ->columns(2),
-
-                Forms\Components\Section::make('Employment Information')
-                    ->schema([
-                        Forms\Components\DatePicker::make('date_hired')
-                            ->required()
-                            ->maxDate(now())
-                            ->displayFormat('Y-m-d'),
+                            ->maxLength(255)
+                            ->placeholder('(555) 123-4567'),
                         
-                        Forms\Components\Select::make('user_type')
-                            ->required()
-                            ->options(User::USER_TYPES)
-                            ->default('lab_technician'),
+                        Forms\Components\DatePicker::make('date_hired')
+                            ->label('Date Hired')
+                            ->default(now())
+                            ->displayFormat('M d, Y'),
                     ])
                     ->columns(2),
 
                 Forms\Components\Section::make('Account Settings')
                     ->schema([
+                        Forms\Components\Select::make('user_type')
+                            ->label('User Role')
+                            ->options(User::USER_TYPES)
+                            ->required()
+                            ->default('lab_technician')
+                            ->selectablePlaceholder(false),
+                        
                         Forms\Components\TextInput::make('password')
                             ->password()
                             ->dehydrated(fn ($state) => filled($state))
                             ->required(fn (string $context): bool => $context === 'create')
                             ->minLength(8)
-                            ->confirmed()
-                            ->helperText('Leave blank to keep current password when editing'),
-                        
+                            ->same('password_confirmation')
+                            ->revealable()
+                            ->helperText('Leave blank to keep current password (when editing)'),
+                   
                         Forms\Components\TextInput::make('password_confirmation')
                             ->password()
                             ->dehydrated(false)
                             ->required(fn (string $context): bool => $context === 'create')
-                            ->minLength(8),
+                            ->minLength(8)
+                            ->revealable(),
                         
                         Forms\Components\Toggle::make('is_active')
                             ->label('Active Account')
@@ -136,45 +136,44 @@ class UserResource extends Resource
                     ->toggleable()
                     ->placeholder('No phone'),
 
-                Tables\Columns\BadgeColumn::make('user_type')
+                Tables\Columns\TextColumn::make('user_type')
                     ->label('Role')
-                    ->formatStateUsing(fn (string $state): string => User::USER_TYPES[$state] ?? $state)
-                    ->colors([
-                        'primary' => 'lab_technician',
-                        'success' => 'quality_control',
-                        'warning' => 'supervisor',
-                        'danger' => 'admin',
-                        'secondary' => ['researcher', 'manager'],
-                    ]),
+                    ->formatStateUsing(fn (string $state): string => User::USER_TYPES[$state] ?? ucfirst($state))
+                    ->badge()
+                    ->color(fn (string $state): string => match ($state) {
+                        'admin' => 'danger',
+                        'manager' => 'success',
+                        'supervisor' => 'warning',
+                        'lab_technician', 'quality_control', 'researcher' => 'info',
+                        default => 'secondary',
+                    }),
 
-                Tables\Columns\BadgeColumn::make('is_active')
+                Tables\Columns\IconColumn::make('is_active')
                     ->label('Status')
-                    ->formatStateUsing(fn (bool $state): string => $state ? 'Active' : 'Inactive')
-                    ->colors([
-                        'success' => true,
-                        'danger' => false,
-                    ]),
+                    ->boolean()
+                    ->trueIcon('heroicon-o-check-circle')
+                    ->falseIcon('heroicon-o-x-circle')
+                    ->trueColor('success')
+                    ->falseColor('danger'),
 
-                Tables\Columns\BadgeColumn::make('account_is_set')
-                    ->label('Account')
-                    ->formatStateUsing(fn (bool $state): string => $state ? 'Setup Complete' : 'Needs Setup')
-                    ->colors([
-                        'success' => true,
-                        'warning' => false,
-                    ]),
+                Tables\Columns\TextColumn::make('account_is_set')
+                    ->label('Setup')
+                    ->formatStateUsing(fn (bool $state): string => $state ? 'Complete' : 'Pending')
+                    ->badge()
+                    ->color(fn (bool $state): string => $state ? 'success' : 'warning'),
 
                 Tables\Columns\TextColumn::make('last_login_at')
                     ->label('Last Login')
                     ->dateTime('M d, Y H:i')
-                    ->placeholder('Never')
+                    ->sortable()
                     ->toggleable()
-                    ->sortable(),
+                    ->placeholder('Never'),
 
                 Tables\Columns\TextColumn::make('created_at')
                     ->label('Created')
                     ->dateTime('M d, Y')
-                    ->toggleable(isToggledHiddenByDefault: true)
-                    ->sortable(),
+                    ->sortable()
+                    ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([
                 Tables\Filters\SelectFilter::make('user_type')
@@ -183,8 +182,8 @@ class UserResource extends Resource
                 
                 Tables\Filters\TernaryFilter::make('is_active')
                     ->label('Account Status')
-                    ->trueLabel('Active')
-                    ->falseLabel('Inactive')
+                    ->trueLabel('Active Only')
+                    ->falseLabel('Inactive Only')
                     ->native(false),
                 
                 Tables\Filters\TernaryFilter::make('account_is_set')
@@ -198,7 +197,6 @@ class UserResource extends Resource
                 Tables\Actions\EditAction::make(),
                 
                 Tables\Actions\Action::make('reset_password')
-                    ->label('Reset Password')
                     ->icon('heroicon-o-key')
                     ->color('warning')
                     ->action(function (User $record) {
@@ -208,6 +206,7 @@ class UserResource extends Resource
                             'account_is_set' => false,
                         ]);
                         
+                        // You could send this via email in a real application
                         \Filament\Notifications\Notification::make()
                             ->title('Password Reset Successfully')
                             ->body("New temporary password: {$tempPassword}")
@@ -221,32 +220,11 @@ class UserResource extends Resource
                     ->modalSubmitActionLabel('Reset Password'),
                 
                 Tables\Actions\Action::make('toggle_status')
-                    ->label(fn (User $record) => $record->is_active ? 'Deactivate' : 'Activate')
                     ->icon(fn (User $record) => $record->is_active ? 'heroicon-o-x-circle' : 'heroicon-o-check-circle')
                     ->color(fn (User $record) => $record->is_active ? 'danger' : 'success')
-                    ->action(function (User $record) {
-                        $record->update(['is_active' => !$record->is_active]);
-                        
-                        $status = $record->is_active ? 'activated' : 'deactivated';
-                        \Filament\Notifications\Notification::make()
-                            ->title("User {$status} successfully")
-                            ->success()
-                            ->send();
-                    })
-                    ->requiresConfirmation(),
-                
-                Tables\Actions\DeleteAction::make()
-                    ->before(function (User $record) {
-                        // Prevent deletion of the last admin
-                        if ($record->isAdmin() && User::where('user_type', 'admin')->count() <= 1) {
-                            \Filament\Notifications\Notification::make()
-                                ->title('Cannot delete the last administrator')
-                                ->danger()
-                                ->send();
-                            
-                            return false;
-                        }
-                    }),
+                    ->action(fn (User $record) => $record->update(['is_active' => !$record->is_active]))
+                    ->requiresConfirmation()
+                    ->label(fn (User $record) => $record->is_active ? 'Deactivate' : 'Activate'),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
@@ -256,25 +234,15 @@ class UserResource extends Resource
                         ->label('Activate Selected')
                         ->icon('heroicon-o-check-circle')
                         ->color('success')
-                        ->action(function ($records) {
-                            $records->each->update(['is_active' => true]);
-                            \Filament\Notifications\Notification::make()
-                                ->title('Users activated successfully')
-                                ->success()
-                                ->send();
-                        }),
+                        ->action(fn ($records) => $records->each->update(['is_active' => true]))
+                        ->requiresConfirmation(),
                     
                     Tables\Actions\BulkAction::make('deactivate')
                         ->label('Deactivate Selected')
                         ->icon('heroicon-o-x-circle')
                         ->color('danger')
-                        ->action(function ($records) {
-                            $records->each->update(['is_active' => false]);
-                            \Filament\Notifications\Notification::make()
-                                ->title('Users deactivated successfully')
-                                ->success()
-                                ->send();
-                        }),
+                        ->action(fn ($records) => $records->each->update(['is_active' => false]))
+                        ->requiresConfirmation(),
                 ]),
             ])
             ->defaultSort('created_at', 'desc');
@@ -302,8 +270,8 @@ class UserResource extends Resource
         return static::getModel()::count();
     }
 
-    public static function getGlobalSearchEloquentQuery(): Builder
+    public static function getNavigationBadgeColor(): string|array|null
     {
-        return parent::getGlobalSearchEloquentQuery()->where('is_active', true);
+        return static::getModel()::count() > 10 ? 'warning' : 'primary';
     }
 }
