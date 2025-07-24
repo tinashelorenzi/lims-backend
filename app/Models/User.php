@@ -9,7 +9,7 @@ use Laravel\Sanctum\HasApiTokens;
 
 class User extends Authenticatable
 {
-    use HasFactory, Notifiable, HasApiTokens;
+    use HasApiTokens, HasFactory, Notifiable;
 
     /**
      * The attributes that are mass assignable.
@@ -26,6 +26,9 @@ class User extends Authenticatable
         'user_type',
         'account_is_set',
         'is_active',
+        'last_heartbeat_at',
+        'session_status',
+        'device_info',
     ];
 
     /**
@@ -50,6 +53,7 @@ class User extends Authenticatable
             'password' => 'hashed',
             'date_hired' => 'date',
             'last_login_at' => 'datetime',
+            'last_heartbeat_at' => 'datetime',
             'account_is_set' => 'boolean',
             'is_active' => 'boolean',
         ];
@@ -60,23 +64,31 @@ class User extends Authenticatable
      */
     const USER_TYPES = [
         'admin' => 'Administrator',
-        'lab_technician' => 'Lab Technician',
-        'quality_control' => 'Quality Control',
-        'supervisor' => 'Supervisor',
-        'researcher' => 'Researcher',
         'manager' => 'Manager',
+        'technician' => 'Technician',
+        'analyst' => 'Analyst',
     ];
 
     /**
-     * Get full name attribute
+     * Session status constants
+     */
+    const SESSION_STATUSES = [
+        'online' => 'Online',
+        'offline' => 'Offline', 
+        'away' => 'Away',
+    ];
+
+    /**
+     * Get user's full name
      */
     public function getFullNameAttribute(): string
     {
-        return "{$this->first_name} {$this->last_name}";
+        $name = trim($this->first_name . ' ' . $this->last_name);
+        return $name ?: $this->email;
     }
 
     /**
-     * Get name attribute for Filament
+     * Get user's name for Filament
      */
     public function getNameAttribute(): string
     {
@@ -88,31 +100,7 @@ class User extends Authenticatable
      */
     public function getUserTypeLabel(): string
     {
-        return self::USER_TYPES[$this->user_type] ?? ucfirst($this->user_type);
-    }
-
-    /**
-     * Check if user is admin
-     */
-    public function isAdmin(): bool
-    {
-        return $this->user_type === 'admin';
-    }
-
-    /**
-     * Check if user needs to set their account
-     */
-    public function needsAccountSetup(): bool
-    {
-        return !$this->account_is_set;
-    }
-
-    /**
-     * Mark account as set up
-     */
-    public function markAccountAsSet(): void
-    {
-        $this->update(['account_is_set' => true]);
+        return self::USER_TYPES[$this->user_type] ?? 'Unknown';
     }
 
     /**
@@ -124,18 +112,112 @@ class User extends Authenticatable
     }
 
     /**
-     * Scope for active users
+     * Update heartbeat timestamp and set user as online
      */
-    public function scopeActive($query)
+    public function updateHeartbeat(string $deviceInfo = null): void
     {
-        return $query->where('is_active', true);
+        $this->update([
+            'last_heartbeat_at' => now(),
+            'session_status' => 'online',
+            'device_info' => $deviceInfo ?? $this->device_info,
+        ]);
     }
 
     /**
-     * Scope for users by type
+     * Set user as offline
      */
-    public function scopeByType($query, $type)
+    public function setOffline(): void
     {
-        return $query->where('user_type', $type);
+        $this->update([
+            'session_status' => 'offline',
+        ]);
+    }
+
+    /**
+     * Set user as away (when heartbeat is stale but not completely offline)
+     */
+    public function setAway(): void
+    {
+        $this->update([
+            'session_status' => 'away',
+        ]);
+    }
+
+    /**
+     * Check if user is currently online (heartbeat within the last 2 minutes)
+     */
+    public function isOnline(): bool
+    {
+        if (!$this->last_heartbeat_at) {
+            return false;
+        }
+        
+        return $this->last_heartbeat_at->gt(now()->subMinutes(2));
+    }
+
+    /**
+     * Check if user is away (heartbeat between 2-10 minutes ago)
+     */
+    public function isAway(): bool
+    {
+        if (!$this->last_heartbeat_at) {
+            return false;
+        }
+        
+        return $this->last_heartbeat_at->between(
+            now()->subMinutes(10),
+            now()->subMinutes(2)
+        );
+    }
+
+    /**
+     * Check if user should be considered offline
+     */
+    public function shouldBeOffline(): bool
+    {
+        if (!$this->last_heartbeat_at) {
+            return true;
+        }
+        
+        return $this->last_heartbeat_at->lt(now()->subMinutes(10));
+    }
+
+    /**
+     * Get session status label
+     */
+    public function getSessionStatusLabel(): string
+    {
+        return self::SESSION_STATUSES[$this->session_status] ?? 'Unknown';
+    }
+
+    /**
+     * Scope for online users
+     */
+    public function scopeOnline($query)
+    {
+        return $query->where('session_status', 'online')
+                     ->where('last_heartbeat_at', '>', now()->subMinutes(2));
+    }
+
+    /**
+     * Scope for offline users
+     */
+    public function scopeOffline($query)
+    {
+        return $query->where('session_status', 'offline')
+                     ->orWhere('last_heartbeat_at', '<', now()->subMinutes(10))
+                     ->orWhereNull('last_heartbeat_at');
+    }
+
+    /**
+     * Scope for away users
+     */
+    public function scopeAway($query)
+    {
+        return $query->where('session_status', 'away')
+                     ->whereBetween('last_heartbeat_at', [
+                         now()->subMinutes(10),
+                         now()->subMinutes(2)
+                     ]);
     }
 }

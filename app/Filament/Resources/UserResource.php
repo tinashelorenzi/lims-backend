@@ -120,6 +120,24 @@ class UserResource extends Resource
     {
         return $table
             ->columns([
+                Tables\Columns\TextColumn::make('session_status')
+    ->label('Status')
+    ->formatStateUsing(fn (string $state): string => User::SESSION_STATUSES[$state] ?? ucfirst($state))
+    ->badge()
+    ->color(fn (string $state): string => match ($state) {
+        'online' => 'success',
+        'away' => 'warning', 
+        'offline' => 'gray',
+        default => 'gray',
+    })
+    ->sortable(),
+
+Tables\Columns\TextColumn::make('last_heartbeat_at')
+    ->label('Last Seen')
+    ->dateTime('M d, Y H:i')
+    ->sortable()
+    ->toggleable()
+    ->placeholder('Never'),
                 Tables\Columns\TextColumn::make('full_name')
                     ->label('Name')
                     ->searchable(['first_name', 'last_name'])

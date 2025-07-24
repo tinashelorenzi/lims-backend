@@ -38,6 +38,14 @@ Route::middleware(['auth:sanctum', 'api.logging'])->group(function () {
     
     // Legacy user route for backward compatibility
     Route::get('user', [AuthController::class, 'profile']);
+
+    // Heartbeat routes
+    Route::prefix('heartbeat')->group(function () {
+        Route::post('ping', [App\Http\Controllers\Api\HeartbeatController::class, 'ping']);
+        Route::get('status', [App\Http\Controllers\Api\HeartbeatController::class, 'status']);
+        Route::get('online-users', [App\Http\Controllers\Api\HeartbeatController::class, 'onlineUsers']);
+        Route::post('offline', [App\Http\Controllers\Api\HeartbeatController::class, 'setOffline']);
+    });
     
     // Health check endpoint
     Route::get('health', function () {
