@@ -12,6 +12,11 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware) {
+        // Add CORS middleware globally for API
+        $middleware->api(prepend: [
+            \Fruitcake\Cors\HandleCors::class,
+        ]);
+        
         // Add your custom middleware here
         $middleware->alias([
             'admin' => \App\Http\Middleware\AdminMiddleware::class,
