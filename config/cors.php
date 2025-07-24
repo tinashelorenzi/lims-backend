@@ -15,17 +15,39 @@ return [
     |
     */
 
-    'paths' => ['api/*', 'sanctum/csrf-cookie'],
+    'paths' => [
+        'api/*',
+        'sanctum/csrf-cookie',
+        'auth/*', // Add auth paths
+    ],
 
     'allowed_methods' => ['*'],
 
-    'allowed_origins' => ['*'], // For development - restrict in production!
+    // For development - allow all origins. In production, specify your domain(s)
+    'allowed_origins' => ['*'],
 
     'allowed_origins_patterns' => [],
 
-    'allowed_headers' => ['*'],
+    'allowed_headers' => [
+        '*',
+        'Content-Type',
+        'X-Requested-With',
+        'Authorization',
+        'Accept',
+        'Origin',
+        'Cache-Control',
+        'X-File-Name',
+        'User-Agent',
+    ],
 
-    'exposed_headers' => [],
+    'exposed_headers' => [
+        'Cache-Control',
+        'Content-Language',
+        'Content-Type',
+        'Expires',
+        'Last-Modified',
+        'Pragma',
+    ],
 
     'max_age' => 0,
 

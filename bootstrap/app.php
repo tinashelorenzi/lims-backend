@@ -12,10 +12,8 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware) {
-        // Add CORS middleware globally for API
-        $middleware->api(prepend: [
-            \Fruitcake\Cors\HandleCors::class,
-        ]);
+        // Laravel 11 has built-in CORS support, no need for fruitcake package
+        // Just configure CORS in config/cors.php
         
         // Add your custom middleware here
         $middleware->alias([

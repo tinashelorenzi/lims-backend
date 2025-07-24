@@ -17,7 +17,6 @@ class AuthController extends Controller
      */
     public function login(\App\Http\Requests\Api\LoginRequest $request)
     {
-
         $user = User::where('email', $request->email)->first();
 
         if (!$user || !Hash::check($request->password, $user->password)) {
@@ -46,8 +45,8 @@ class AuthController extends Controller
             'data' => [
                 'user' => [
                     'id' => $user->id,
-                    'first_name' => $user->first_name,
-                    'last_name' => $user->last_name,
+                    'first_name' => $user->first_name ?? '',
+                    'last_name' => $user->last_name ?? '',
                     'email' => $user->email,
                     'phone_number' => $user->phone_number,
                     'user_type' => $user->user_type,
@@ -56,6 +55,8 @@ class AuthController extends Controller
                     'is_active' => $user->is_active,
                     'last_login_at' => $user->last_login_at,
                     'date_hired' => $user->date_hired,
+                    'created_at' => $user->created_at,
+                    'updated_at' => $user->updated_at,
                 ],
                 'token' => $token,
                 'token_type' => 'Bearer',
@@ -103,8 +104,8 @@ class AuthController extends Controller
             'data' => [
                 'user' => [
                     'id' => $user->id,
-                    'first_name' => $user->first_name,
-                    'last_name' => $user->last_name,
+                    'first_name' => $user->first_name ?? '',
+                    'last_name' => $user->last_name ?? '',
                     'full_name' => $user->full_name,
                     'email' => $user->email,
                     'phone_number' => $user->phone_number,
@@ -152,10 +153,19 @@ class AuthController extends Controller
             'data' => [
                 'user' => [
                     'id' => $user->id,
-                    'first_name' => $user->first_name,
-                    'last_name' => $user->last_name,
+                    'first_name' => $user->first_name ?? '',
+                    'last_name' => $user->last_name ?? '',
+                    'full_name' => $user->full_name,
                     'email' => $user->email,
+                    'phone_number' => $user->phone_number,
+                    'user_type' => $user->user_type,
+                    'user_type_label' => $user->getUserTypeLabel(),
                     'account_is_set' => $user->account_is_set,
+                    'is_active' => $user->is_active,
+                    'last_login_at' => $user->last_login_at,
+                    'date_hired' => $user->date_hired,
+                    'created_at' => $user->created_at,
+                    'updated_at' => $user->updated_at,
                 ],
             ],
         ]);
@@ -228,13 +238,19 @@ class AuthController extends Controller
             'data' => [
                 'user' => [
                     'id' => $user->id,
-                    'first_name' => $user->first_name,
-                    'last_name' => $user->last_name,
+                    'first_name' => $user->first_name ?? '',
+                    'last_name' => $user->last_name ?? '',
                     'full_name' => $user->full_name,
                     'email' => $user->email,
                     'phone_number' => $user->phone_number,
                     'user_type' => $user->user_type,
+                    'user_type_label' => $user->getUserTypeLabel(),
                     'account_is_set' => $user->account_is_set,
+                    'is_active' => $user->is_active,
+                    'last_login_at' => $user->last_login_at,
+                    'date_hired' => $user->date_hired,
+                    'created_at' => $user->created_at,
+                    'updated_at' => $user->updated_at,
                 ],
             ],
         ]);
