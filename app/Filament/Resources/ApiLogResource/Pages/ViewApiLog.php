@@ -8,8 +8,6 @@ use Filament\Resources\Pages\ViewRecord;
 use Filament\Infolists\Infolist;
 use Filament\Infolists\Components\Section;
 use Filament\Infolists\Components\TextEntry;
-use Filament\Infolists\Components\KeyValueEntry;
-use Filament\Support\Colors\Color;
 
 class ViewApiLog extends ViewRecord
 {
@@ -69,30 +67,48 @@ class ViewApiLog extends ViewRecord
                         TextEntry::make('user.email')
                             ->label('User')
                             ->placeholder('Guest')
-                            ->color('primary'),
+                            ->color('primary')
+                            ->formatStateUsing(function ($state) {
+                                if (is_string($state)) {
+                                    return $state;
+                                }
+                                if (is_array($state)) {
+                                    return implode(', ', $state);
+                                }
+                                return 'Guest';
+                            }),
 
                         TextEntry::make('method')
                             ->badge()
                             ->color(fn (string $state): string => match ($state) {
-                                'GET' => Color::Green,
-                                'POST' => Color::Blue,
-                                'PUT' => Color::Yellow,
-                                'DELETE' => Color::Red,
-                                default => Color::Gray,
+                                'GET' => 'success',
+                                'POST' => 'primary',
+                                'PUT' => 'warning',
+                                'DELETE' => 'danger',
+                                default => 'secondary',
                             }),
 
                         TextEntry::make('endpoint')
                             ->copyable()
-                            ->copyMessage('Endpoint copied to clipboard'),
+                            ->copyMessage('Endpoint copied to clipboard')
+                            ->formatStateUsing(function ($state) {
+                                if (is_string($state)) {
+                                    return $state;
+                                }
+                                if (is_array($state)) {
+                                    return implode(', ', $state);
+                                }
+                                return '';
+                            }),
 
                         TextEntry::make('response_status')
                             ->label('Status Code')
                             ->badge()
                             ->color(fn (int $state): string => match (true) {
-                                $state >= 200 && $state < 300 => Color::Green,
-                                $state >= 300 && $state < 400 => Color::Yellow,
-                                $state >= 400 => Color::Red,
-                                default => Color::Gray,
+                                $state >= 200 && $state < 300 => 'success',
+                                $state >= 300 && $state < 400 => 'warning',
+                                $state >= 400 => 'danger',
+                                default => 'secondary',
                             }),
 
                         TextEntry::make('response_time')
@@ -103,9 +119,9 @@ class ViewApiLog extends ViewRecord
                                     : number_format($state, 2) . ' ms'
                             )
                             ->color(fn (float $state): string => match (true) {
-                                $state > 1000 => Color::Red,
-                                $state > 500 => Color::Yellow,
-                                default => Color::Green,
+                                $state > 1000 => 'danger',
+                                $state > 500 => 'warning',
+                                default => 'success',
                             }),
                     ])
                     ->columns(3),
@@ -114,49 +130,120 @@ class ViewApiLog extends ViewRecord
                     ->schema([
                         TextEntry::make('ip_address')
                             ->label('IP Address')
-                            ->copyable(),
+                            ->copyable()
+                            ->formatStateUsing(function ($state) {
+                                if (is_string($state)) {
+                                    return $state;
+                                }
+                                if (is_array($state)) {
+                                    return implode(', ', $state);
+                                }
+                                return '';
+                            }),
 
                         TextEntry::make('user_agent')
                             ->label('User Agent')
                             ->limit(100)
-                            ->tooltip(fn (?string $state): ?string => $state),
+                            ->tooltip(function ($state) {
+                                if (is_string($state)) {
+                                    return $state;
+                                }
+                                if (is_array($state)) {
+                                    return implode(', ', $state);
+                                }
+                                return null;
+                            }),
 
                         TextEntry::make('request_id')
                             ->label('Request ID')
                             ->copyable()
-                            ->fontFamily('mono'),
+                            ->fontFamily('mono')
+                            ->formatStateUsing(function ($state) {
+                                if (is_string($state)) {
+                                    return $state;
+                                }
+                                if (is_array($state)) {
+                                    return implode(', ', $state);
+                                }
+                                return '';
+                            }),
 
                         TextEntry::make('session_id')
                             ->label('Session ID')
                             ->copyable()
-                            ->fontFamily('mono'),
+                            ->fontFamily('mono')
+                            ->formatStateUsing(function ($state) {
+                                if (is_string($state)) {
+                                    return $state;
+                                }
+                                if (is_array($state)) {
+                                    return implode(', ', $state);
+                                }
+                                return '';
+                            }),
                     ])
                     ->columns(2),
 
                 Section::make('Request Data')
                     ->schema([
-                        KeyValueEntry::make('request_headers')
+                        TextEntry::make('request_headers')
                             ->label('Request Headers')
-                            ->keyLabel('Header')
-                            ->valueLabel('Value'),
+                            ->formatStateUsing(function ($state) {
+                                if (is_array($state)) {
+                                    return json_encode($state, JSON_PRETTY_PRINT);
+                                }
+                                if (is_string($state)) {
+                                    return $state;
+                                }
+                                return '';
+                            })
+                            ->fontFamily('mono')
+                            ->copyable(),
 
-                        KeyValueEntry::make('request_body')
+                        TextEntry::make('request_body')
                             ->label('Request Body')
-                            ->keyLabel('Field')
-                            ->valueLabel('Value'),
+                            ->formatStateUsing(function ($state) {
+                                if (is_array($state)) {
+                                    return json_encode($state, JSON_PRETTY_PRINT);
+                                }
+                                if (is_string($state)) {
+                                    return $state;
+                                }
+                                return '';
+                            })
+                            ->fontFamily('mono')
+                            ->copyable(),
                     ]),
 
                 Section::make('Response Data')
                     ->schema([
-                        KeyValueEntry::make('response_headers')
+                        TextEntry::make('response_headers')
                             ->label('Response Headers')
-                            ->keyLabel('Header')
-                            ->valueLabel('Value'),
+                            ->formatStateUsing(function ($state) {
+                                if (is_array($state)) {
+                                    return json_encode($state, JSON_PRETTY_PRINT);
+                                }
+                                if (is_string($state)) {
+                                    return $state;
+                                }
+                                return '';
+                            })
+                            ->fontFamily('mono')
+                            ->copyable(),
 
-                        KeyValueEntry::make('response_body')
+                        TextEntry::make('response_body')
                             ->label('Response Body')
-                            ->keyLabel('Field')
-                            ->valueLabel('Value'),
+                            ->formatStateUsing(function ($state) {
+                                if (is_array($state)) {
+                                    return json_encode($state, JSON_PRETTY_PRINT);
+                                }
+                                if (is_string($state)) {
+                                    return $state;
+                                }
+                                return '';
+                            })
+                            ->fontFamily('mono')
+                            ->copyable(),
                     ]),
 
                 Section::make('Error Information')
@@ -164,11 +251,29 @@ class ViewApiLog extends ViewRecord
                         TextEntry::make('error_type')
                             ->label('Error Type')
                             ->badge()
-                            ->color('danger'),
+                            ->color('danger')
+                            ->formatStateUsing(function ($state) {
+                                if (is_string($state)) {
+                                    return $state;
+                                }
+                                if (is_array($state)) {
+                                    return implode(', ', $state);
+                                }
+                                return '';
+                            }),
 
                         TextEntry::make('error_message')
                             ->label('Error Message')
-                            ->color('danger'),
+                            ->color('danger')
+                            ->formatStateUsing(function ($state) {
+                                if (is_string($state)) {
+                                    return $state;
+                                }
+                                if (is_array($state)) {
+                                    return implode(', ', $state);
+                                }
+                                return '';
+                            }),
                     ])
                     ->visible(fn ($record): bool => !empty($record->error_type) || !empty($record->error_message)),
             ]);

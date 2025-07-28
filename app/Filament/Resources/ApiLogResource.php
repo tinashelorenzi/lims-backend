@@ -10,9 +10,9 @@ use Filament\Forms\Form;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
+use Filament\Tables\Columns\TextColumn; // Add this import
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
-use Filament\Tables\Actions\BulkAction;
 use Illuminate\Database\Eloquent\Collection;
 use Filament\Notifications\Notification;
 
@@ -135,14 +135,15 @@ class ApiLogResource extends Resource
                     ->sortable()
                     ->placeholder('Guest'),
 
-                Tables\Columns\BadgeColumn::make('method')
-                    ->colors([
-                        'success' => 'GET',
-                        'primary' => 'POST',
-                        'warning' => 'PUT',
-                        'danger' => 'DELETE',
-                        'secondary' => ['PATCH', 'OPTIONS', 'HEAD'],
-                    ]),
+                Tables\Columns\TextColumn::make('method')
+                    ->badge()
+                    ->color(fn (string $state): string => match ($state) {
+                        'GET' => 'success',
+                        'POST' => 'primary',
+                        'PUT' => 'warning',
+                        'DELETE' => 'danger',
+                        default => 'secondary',
+                    }),
 
                 Tables\Columns\TextColumn::make('endpoint')
                     ->searchable()
@@ -152,13 +153,15 @@ class ApiLogResource extends Resource
                         return strlen($state) > 50 ? $state : null;
                     }),
 
-                Tables\Columns\BadgeColumn::make('response_status')
+                Tables\Columns\TextColumn::make('response_status')
                     ->label('Status')
-                    ->colors([
-                        'success' => fn ($state) => $state >= 200 && $state < 300,
-                        'warning' => fn ($state) => $state >= 300 && $state < 400,
-                        'danger' => fn ($state) => $state >= 400,
-                    ])
+                    ->badge()
+                    ->color(fn (string $state): string => match (true) {
+                        $state >= 200 && $state < 300 => 'success',
+                        $state >= 300 && $state < 400 => 'warning',
+                        $state >= 400 => 'danger',
+                        default => 'secondary',
+                    })
                     ->sortable(),
 
                 Tables\Columns\TextColumn::make('response_time')
@@ -176,7 +179,10 @@ class ApiLogResource extends Resource
                     ->label('Error')
                     ->getStateUsing(fn ($record) => $record->response_status >= 400)
                     ->boolean()
-                    ->color(fn ($state) => $state ? 'danger' : 'success')
+                    ->trueIcon('heroicon-o-exclamation-triangle')
+                    ->falseIcon('heroicon-o-check-circle')
+                    ->trueColor('danger')
+                    ->falseColor('success')
                     ->toggleable(),
             ])
             ->filters([
@@ -241,44 +247,47 @@ class ApiLogResource extends Resource
                     ->form([
                         Forms\Components\TextInput::make('pattern')
                             ->label('Regex Pattern')
-                            ->placeholder('e.g., /api/auth.*')
-                            ->helperText('Enter a regex pattern to filter endpoints'),
+                            ->placeholder('e.g., /api/auth.*'),
                     ])
                     ->query(function (Builder $query, array $data): Builder {
-                        if (!empty($data['pattern'])) {
-                            try {
-                                return $query->where('endpoint', 'REGEXP', $data['pattern']);
-                            } catch (\Exception $e) {
-                                // Invalid regex, ignore filter
-                                return $query;
-                            }
+                        if (filled($data['pattern'])) {
+                            return $query->where('endpoint', 'REGEXP', $data['pattern']);
                         }
                         return $query;
                     }),
             ])
             ->actions([
-                Tables\Actions\ViewAction::make()
-                    ->label('Details'),
+                Tables\Actions\ViewAction::make(),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
-                    BulkAction::make('export_filtered')
+                    Tables\Actions\BulkAction::make('export_selected')
                         ->label('Export Selected')
                         ->icon('heroicon-o-arrow-down-tray')
                         ->action(function (Collection $records) {
                             return static::exportLogs($records);
                         })
                         ->requiresConfirmation()
-                        ->modalHeading('Export API Logs')
-                        ->modalDescription('This will export the selected API logs as a JSON file.')
+                        ->modalHeading('Export Selected Logs')
+                        ->modalDescription('Export the selected API logs as a JSON file.')
                         ->modalSubmitActionLabel('Export'),
 
                     Tables\Actions\DeleteBulkAction::make()
-                        ->requiresConfirmation(),
+                        ->requiresConfirmation()
+                        ->modalHeading('Delete Selected Logs')
+                        ->modalDescription('Are you sure you want to delete the selected API logs? This action cannot be undone.')
+                        ->modalSubmitActionLabel('Delete'),
                 ]),
             ])
             ->defaultSort('logged_at', 'desc')
             ->poll('30s'); // Auto-refresh every 30 seconds
+    }
+
+    public static function getRelations(): array
+    {
+        return [
+            //
+        ];
     }
 
     public static function getPages(): array
@@ -292,7 +301,7 @@ class ApiLogResource extends Resource
     public static function getNavigationBadge(): ?string
     {
         $errorCount = static::getModel()::where('response_status', '>=', 400)
-            ->where('logged_at', '>=', now()->subHour())
+            ->where('logged_at', '>=', now()->subDay())
             ->count();
 
         return $errorCount > 0 ? (string) $errorCount : null;

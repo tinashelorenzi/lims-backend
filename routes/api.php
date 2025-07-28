@@ -17,7 +17,7 @@ use Illuminate\Support\Facades\Route;
 
 // Public authentication routes
 Route::prefix('auth')->group(function () {
-    Route::post('login', [AuthController::class, 'login']);
+    Route::post('login', [AuthController::class, 'login']) ->middleware('api.logging');
 });
 
 // Protected routes
