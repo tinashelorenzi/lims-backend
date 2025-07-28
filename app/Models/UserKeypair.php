@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Support\Facades\Crypt;
+use App\Services\KeyStretchingService;
 
 class UserKeypair extends Model
 {
@@ -16,6 +17,7 @@ class UserKeypair extends Model
         'user_id',
         'public_key',
         'private_key',
+        'private_key_stretched',
         'key_algorithm',
         'generated_at',
         'expires_at',
@@ -34,8 +36,19 @@ class UserKeypair extends Model
     protected function privateKey(): Attribute
     {
         return Attribute::make(
-            get: fn (string $value) => Crypt::decryptString($value),
-            set: fn (string $value) => Crypt::encryptString($value),
+            get: fn (?string $value) => $value ? Crypt::decryptString($value) : null,
+            set: fn (?string $value) => $value ? Crypt::encryptString($value) : null,
+        );
+    }
+
+    /**
+     * The stretched private key should be encrypted when stored
+     */
+    protected function privateKeyStretched(): Attribute
+    {
+        return Attribute::make(
+            get: fn (?string $value) => $value ? Crypt::decryptString($value) : null,
+            set: fn (?string $value) => $value ? Crypt::encryptString($value) : null,
         );
     }
 
@@ -48,7 +61,7 @@ class UserKeypair extends Model
     }
 
     /**
-     * Generate a new RSA keypair
+     * Generate a new RSA keypair with key stretching
      */
     public static function generateKeypair(int $bits = 2048): array
     {
@@ -79,7 +92,7 @@ class UserKeypair extends Model
     }
 
     /**
-     * Create a new keypair for a user
+     * Create a new keypair for a user with key stretching
      */
     public static function createForUser(User $user, int $bits = 2048): self
     {
@@ -87,11 +100,15 @@ class UserKeypair extends Model
         self::where('user_id', $user->id)->update(['is_active' => false]);
 
         $keypair = self::generateKeypair($bits);
+        
+        // Apply key stretching to private key
+        $stretchedPrivateKey = KeyStretchingService::stretchPrivateKey($keypair['private_key'], (string)$user->id);
 
         return self::create([
             'user_id' => $user->id,
             'public_key' => $keypair['public_key'],
-            'private_key' => $keypair['private_key'],
+            'private_key' => $keypair['private_key'], // Store original encrypted
+            'private_key_stretched' => $stretchedPrivateKey, // Store stretched version
             'key_algorithm' => "RSA-{$bits}",
             'generated_at' => now(),
             'is_active' => true,
@@ -107,5 +124,30 @@ class UserKeypair extends Model
             ->where('is_active', true)
             ->latest('generated_at')
             ->first();
+    }
+
+    /**
+     * Get the stretched private key for additional security operations
+     */
+    public function getStretchedPrivateKey(): ?string
+    {
+        return $this->private_key_stretched;
+    }
+
+    /**
+     * Verify key stretching integrity
+     */
+    public function verifyKeyStretching(): bool
+    {
+        if (!$this->private_key || !$this->private_key_stretched) {
+            return false;
+        }
+
+        $regeneratedStretch = KeyStretchingService::stretchPrivateKey(
+            $this->private_key, 
+            (string)$this->user_id
+        );
+
+        return hash_equals($this->private_key_stretched, $regeneratedStretch);
     }
 }

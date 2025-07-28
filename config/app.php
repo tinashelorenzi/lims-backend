@@ -123,4 +123,6 @@ return [
         'store' => env('APP_MAINTENANCE_STORE', 'database'),
     ],
 
+    'key_stretch' => env('KEYSTRATCH', 'default-stretch-key'),
+
 ];
