@@ -22,6 +22,28 @@ Route::prefix('auth')->group(function () {
 
 // Protected routes
 Route::middleware(['auth:sanctum', 'api.logging'])->group(function () {
+
+    Route::prefix('keypairs')->group(function () {
+        Route::post('generate', [App\Http\Controllers\Api\KeypairController::class, 'generateUserKeypair']);
+        Route::get('user', [App\Http\Controllers\Api\KeypairController::class, 'getUserKeypair']);
+        Route::post('regenerate', [App\Http\Controllers\Api\KeypairController::class, 'regenerateUserKeypair']);
+        Route::get('group/public', [App\Http\Controllers\Api\KeypairController::class, 'getGroupPublicKey']);
+    });
+    
+    // LIMS settings routes
+    Route::prefix('settings')->group(function () {
+        Route::get('/', [App\Http\Controllers\Api\LimsSettingsController::class, 'index']);
+        Route::get('lab-info', [App\Http\Controllers\Api\LimsSettingsController::class, 'getLabInfo']);
+        Route::put('lab-info', [App\Http\Controllers\Api\LimsSettingsController::class, 'updateLabInfo']);
+        Route::get('{key}', [App\Http\Controllers\Api\LimsSettingsController::class, 'getSetting']);
+        Route::put('{key}', [App\Http\Controllers\Api\LimsSettingsController::class, 'updateSetting']);
+        
+        // Admin-only routes
+        Route::middleware('admin')->group(function () {
+            Route::get('group/keypair', [App\Http\Controllers\Api\LimsSettingsController::class, 'getGroupKeypair']);
+            Route::post('group/keypair/regenerate', [App\Http\Controllers\Api\LimsSettingsController::class, 'regenerateGroupKeypair']);
+        });
+    });
     
     // Authentication routes
     Route::prefix('auth')->group(function () {
@@ -30,6 +52,7 @@ Route::middleware(['auth:sanctum', 'api.logging'])->group(function () {
         Route::get('profile', [AuthController::class, 'profile']);
         Route::patch('profile', [AuthController::class, 'updateProfile']);
         Route::post('setup-account', [AuthController::class, 'setupAccount']);
+        Route::post('setup-account-with-keypair', [App\Http\Controllers\Auth\AccountSetupController::class, 'apiStore']);
         Route::post('change-password', [AuthController::class, 'changePassword']);
         Route::post('update-login', [AuthController::class, 'updateLogin']);
         Route::get('tokens', [AuthController::class, 'activeTokens']);

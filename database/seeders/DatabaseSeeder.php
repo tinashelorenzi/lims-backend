@@ -64,5 +64,8 @@ class DatabaseSeeder extends Seeder
             // Create users that need setup
             User::factory(2)->needsSetup()->create();
         }
+        $this->call([
+            LimsSettingsSeeder::class,
+        ]);
     }
 }

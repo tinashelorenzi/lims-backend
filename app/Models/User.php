@@ -6,6 +6,9 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
+use App\Models\UserKeypair;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class User extends Authenticatable
 {
@@ -220,4 +223,36 @@ class User extends Authenticatable
                          now()->subMinutes(2)
                      ]);
     }
+    /**
+ * Relationship with user keypairs
+ */
+public function keypairs(): HasMany
+{
+    return $this->hasMany(UserKeypair::class);
+}
+
+/**
+ * Get the active keypair for this user
+ */
+public function activeKeypair(): HasOne
+{
+    return $this->hasOne(UserKeypair::class)->where('is_active', true)->latest('generated_at');
+}
+
+/**
+ * Generate a new keypair for this user
+ */
+public function generateKeypair(int $bits = 2048): UserKeypair
+{
+    return UserKeypair::createForUser($this, $bits);
+}
+
+/**
+ * Check if user has an active keypair
+ */
+public function hasActiveKeypair(): bool
+{
+    return $this->activeKeypair()->exists();
+}
+
 }
